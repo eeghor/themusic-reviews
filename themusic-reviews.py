@@ -61,7 +61,6 @@ album_review_urls.update(collect_headline_review_urls())
 album_review_urls.update(collect_review_urls())
 print("reviews on the first page: {}".format(len(album_review_urls)))
 
-last_page = 1
 for i in range(2, last_page + 1):
 
     driver.get(BASE_PAGE + "/?page=" + str(i))
@@ -80,10 +79,10 @@ for i in range(2, last_page + 1):
 
 driver.quit()
 
+links_done = 0
+
 for rl in album_review_urls:
 
-
-    print(rl)
     GOT_PAGE = False
 
     while not GOT_PAGE:
@@ -98,7 +97,65 @@ for rl in album_review_urls:
     this_review = defaultdict()
 
     try:
-        this_review["review_artist"] = unidecode(soup.find("h1", itemprop = 'itemReviewed'))
-        print(this_review["review_artist"])
+        # note white spaces around -
+        this_review["review_artist"], this_review["review_album"] = [t.strip().lower() for t in unidecode(soup.find("h1")).text.strip().split(" - ")]
+
     except:
         this_review["review_artist"] = None
+        this_review["review_album"] = None
+
+    if not this_review["review_album"]:
+        this_review["review_album"] = unidecode(soup.find("h1").text).strip()
+        print("possible album name: {}".format(this_review["review_album"]))
+
+    try:
+        this_review["review_abstract"] = unidecode(soup.find("p", {"itemprop": "description"}).text.lower().strip().strip('"'))
+    except:
+        this_review["review_abstract"] = None
+
+    #print(this_review["review_abstract"])
+
+    try:
+        this_review["review_date"] = unidecode(soup.find(class_='published').text.strip('"').split("|")[0].strip()).lower()
+    except:
+        this_review["review_date"] = None
+
+    #print(this_review["review_date"])
+
+    try:
+        this_review["review_text"] = unidecode(soup.find("div", {"itemprop": 'reviewBody'}).text.strip().lower())
+    except:
+        this_review["review_text"] = None
+
+    #print(this_review["review_text"])
+
+    try:
+        full_stars = len(soup.find_all("i", {"class": "fa fa-star"}))
+    except:
+        full_stars = 0
+    try:
+        half_stars = len(soup.find_all("i", {"class": "fa fa-star-half-o"}))
+    except:
+        half_stars = 0
+
+    total_stars = full_stars + half_stars
+
+    if total_stars:
+        this_review["themusic_score"] =  str(total_stars) + "/5"
+    else:
+        this_review["themusic_score"] = None
+
+    links_done += 1
+
+    if (links_done % 50 == 0):
+        print("processed reviews: {}/{} ({:.1f}%)".format(links_done, len(album_review_urls),
+                                                          100 * links_done / len(album_review_urls)))
+
+    if (this_review["review_artist"]) and (this_review["review_album"]):
+        print(this_review["review_artist"] + " - " + this_review["review_album"])
+        reviews.append(this_review)
+    else:
+        print("cannot find any artist or album here, skipping..")
+
+print("saving reviews to json...")
+json.dump(reviews, open("themusic_reviews_{:02d}{:02d}{:02d}.json".format(day, month, year), "w"))
