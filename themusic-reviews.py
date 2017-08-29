@@ -105,8 +105,10 @@ for rl in album_review_urls:
         this_review["review_album"] = None
 
     if not this_review["review_album"]:
-        this_review["review_album"] = unidecode(soup.find("h1").text).strip()
-        print("possible album name: {}".format(this_review["review_album"]))
+        this_review["review_album"] = " ".join(unidecode(soup.find("h1").text).strip().split(" - ")[-2:]).lower()
+
+    if not this_review["review_artist"]:
+        this_review["review_artist"] = unidecode(soup.find("h1").text).strip().split(" - ")[0].lower()
 
     try:
         this_review["review_abstract"] = unidecode(soup.find("p", {"itemprop": "description"}).text.lower().strip().strip('"'))
@@ -152,7 +154,10 @@ for rl in album_review_urls:
                                                           100 * links_done / len(album_review_urls)))
 
     if (this_review["review_artist"]) and (this_review["review_album"]):
-        print(this_review["review_artist"] + " - " + this_review["review_album"])
+        try:
+            print(this_review["review_artist"] + " - " + this_review["review_album"])
+        except:
+            print("couldn\'t pring artist and album name. decoding problem?")
         reviews.append(this_review)
     else:
         print("cannot find any artist or album here, skipping..")
